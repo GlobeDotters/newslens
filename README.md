@@ -23,7 +23,7 @@ NewsLens is a command-line tool that helps you understand news coverage across t
 pip install newslens
 
 # From source
-git clone https://github.com/yourusername/newslens.git
+git clone https://github.com/GlobeDotters/newslens.git
 cd newslens
 pip install -e .
 ```
