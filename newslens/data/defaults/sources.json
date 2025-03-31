@@ -1,0 +1,186 @@
+{
+  "US": [
+    {
+      "name": "CNN",
+      "url": "https://www.cnn.com",
+      "country_code": "US",
+      "bias_score": -5.0,
+      "reliability_score": 7.0,
+      "rss_url": "http://rss.cnn.com/rss/cnn_topstories.rss"
+    },
+    {
+      "name": "Fox News",
+      "url": "https://www.foxnews.com",
+      "country_code": "US",
+      "bias_score": 7.0,
+      "reliability_score": 6.0,
+      "rss_url": "https://moxie.foxnews.com/google-publisher/latest.xml"
+    },
+    {
+      "name": "AP News",
+      "url": "https://apnews.com",
+      "country_code": "US",
+      "bias_score": 0.0,
+      "reliability_score": 9.0,
+      "rss_url": "https://rsshub.app/apnews/topics/apf-topnews"
+    },
+    {
+      "name": "New York Times",
+      "url": "https://www.nytimes.com",
+      "country_code": "US",
+      "bias_score": -3.0,
+      "reliability_score": 8.0,
+      "rss_url": "https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml"
+    },
+    {
+      "name": "Wall Street Journal",
+      "url": "https://www.wsj.com",
+      "country_code": "US",
+      "bias_score": 4.0,
+      "reliability_score": 8.0,
+      "rss_url": "https://feeds.a.dj.com/rss/RSSWorldNews.xml"
+    },
+    {
+      "name": "MSNBC",
+      "url": "https://www.msnbc.com",
+      "country_code": "US",
+      "bias_score": -7.0,
+      "reliability_score": 6.0,
+      "rss_url": "https://www.msnbc.com/feeds/latest"
+    },
+    {
+      "name": "Breitbart",
+      "url": "https://www.breitbart.com",
+      "country_code": "US",
+      "bias_score": 8.0,
+      "reliability_score": 3.0,
+      "rss_url": "https://feeds.feedburner.com/breitbart"
+    },
+    {
+      "name": "NPR",
+      "url": "https://www.npr.org",
+      "country_code": "US",
+      "bias_score": -2.0,
+      "reliability_score": 8.0,
+      "rss_url": "https://feeds.npr.org/1001/rss.xml"
+    },
+    {
+      "name": "Washington Post",
+      "url": "https://www.washingtonpost.com",
+      "country_code": "US",
+      "bias_score": -3.0,
+      "reliability_score": 8.0,
+      "rss_url": "https://feeds.washingtonpost.com/rss/national"
+    }
+  ],
+  "UK": [
+    {
+      "name": "BBC",
+      "url": "https://www.bbc.co.uk/news",
+      "country_code": "UK",
+      "bias_score": -1.0,
+      "reliability_score": 9.0,
+      "rss_url": "http://feeds.bbci.co.uk/news/rss.xml"
+    },
+    {
+      "name": "The Guardian",
+      "url": "https://www.theguardian.com",
+      "country_code": "UK",
+      "bias_score": -6.0,
+      "reliability_score": 7.5,
+      "rss_url": "https://www.theguardian.com/uk/rss"
+    },
+    {
+      "name": "Daily Mail",
+      "url": "https://www.dailymail.co.uk",
+      "country_code": "UK",
+      "bias_score": 6.0,
+      "reliability_score": 4.0,
+      "rss_url": "https://www.dailymail.co.uk/home/index.rss"
+    },
+    {
+      "name": "The Telegraph",
+      "url": "https://www.telegraph.co.uk",
+      "country_code": "UK",
+      "bias_score": 5.0,
+      "reliability_score": 7.0,
+      "rss_url": "https://www.telegraph.co.uk/rss.xml"
+    },
+    {
+      "name": "The Independent",
+      "url": "https://www.independent.co.uk",
+      "country_code": "UK",
+      "bias_score": -2.0,
+      "reliability_score": 7.0,
+      "rss_url": "https://www.independent.co.uk/news/uk/rss"
+    }
+  ],
+  "CA": [
+    {
+      "name": "CBC",
+      "url": "https://www.cbc.ca/news",
+      "country_code": "CA",
+      "bias_score": -3.0,
+      "reliability_score": 8.0,
+      "rss_url": "https://rss.cbc.ca/lineup/topstories.xml"
+    },
+    {
+      "name": "Globe and Mail",
+      "url": "https://www.theglobeandmail.com",
+      "country_code": "CA",
+      "bias_score": 0.0,
+      "reliability_score": 8.0,
+      "rss_url": "https://www.theglobeandmail.com/feed/"
+    },
+    {
+      "name": "National Post",
+      "url": "https://nationalpost.com",
+      "country_code": "CA",
+      "bias_score": 4.0,
+      "reliability_score": 7.0,
+      "rss_url": "https://nationalpost.com/feed/"
+    },
+    {
+      "name": "Toronto Star",
+      "url": "https://www.thestar.com",
+      "country_code": "CA",
+      "bias_score": -4.0,
+      "reliability_score": 7.0,
+      "rss_url": "https://www.thestar.com/content/thestar/feed.RSSManagerServlet.articles.topstories.rss"
+    }
+  ],
+  "AU": [
+    {
+      "name": "ABC News",
+      "url": "https://www.abc.net.au/news",
+      "country_code": "AU",
+      "bias_score": -2.0,
+      "reliability_score": 8.0,
+      "rss_url": "https://www.abc.net.au/news/feed/51120/rss.xml"
+    },
+    {
+      "name": "Sydney Morning Herald",
+      "url": "https://www.smh.com.au",
+      "country_code": "AU",
+      "bias_score": -1.0,
+      "reliability_score": 7.0,
+      "rss_url": "https://www.smh.com.au/rss/feed.xml"
+    },
+    {
+      "name": "The Australian",
+      "url": "https://www.theaustralian.com.au",
+      "country_code": "AU",
+      "bias_score": 5.0,
+      "reliability_score": 7.0,
+      "rss_url": "https://www.theaustralian.com.au/feed/"
+    },
+    {
+      "name": "News.com.au",
+      "url": "https://www.news.com.au",
+      "country_code": "AU",
+      "bias_score": 3.0,
+      "reliability_score": 5.0,
+      "rss_url": "https://www.news.com.au/content-feeds/latest-news-national/"
+    }
+  ]
+}
