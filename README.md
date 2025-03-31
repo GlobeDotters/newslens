@@ -14,6 +14,7 @@ NewsLens is a command-line tool that helps you understand news coverage across t
 - 🔍 Blindspot detection (stories ignored by parts of the media spectrum)
 - 📊 Coverage visualization across political spectrum
 - 🔄 Local news source database with bias classifications
+- 🔊 Asynchronous news fetching for improved performance
 - 📱 Terminal-based UI with rich visualization
 - 📖 Reader mode for reading articles in the terminal
 

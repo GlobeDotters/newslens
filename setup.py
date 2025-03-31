@@ -12,6 +12,7 @@ setup(
         "click>=8.0.0",
         "rich>=10.0.0",
         "requests>=2.25.0",
+        "aiohttp>=3.8.0",
         "feedparser>=6.0.0",
         "pycountry>=20.0.0",
     ],

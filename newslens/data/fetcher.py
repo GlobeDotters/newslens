@@ -58,6 +58,31 @@ class NewsItem:
             content=data.get("content"),
             image_url=data.get("image_url")
         )
+    
+    def to_dict(self) -> Dict:
+        """Convert news item to dictionary for serialization."""
+        return {
+            "title": self.title,
+            "url": self.url,
+            "source_name": self.source_name,
+            "published_at": self.published_at.isoformat(),
+            "description": self.description,
+            "content": self.content,
+            "image_url": self.image_url
+        }
+    
+    @classmethod
+    def from_dict(cls, data: Dict) -> 'NewsItem':
+        """Create a NewsItem from a dictionary."""
+        return cls(
+            title=data["title"],
+            url=data["url"],
+            source_name=data["source_name"],
+            published_at=datetime.fromisoformat(data["published_at"]),
+            description=data.get("description"),
+            content=data.get("content"),
+            image_url=data.get("image_url")
+        )
 
 
 class NewsFetcher:

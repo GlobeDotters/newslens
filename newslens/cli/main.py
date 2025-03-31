@@ -8,6 +8,7 @@ import click
 import pycountry
 import json
 import pickle
+import asyncio
 from pathlib import Path
 from rich.console import Console
 from rich.panel import Panel
@@ -16,6 +17,7 @@ from rich import box
 
 from newslens import __version__
 from newslens.data.fetcher import NewsFetcher
+from newslens.data.async_fetcher import AsyncNewsFetcher
 from newslens.data.mock import MockNewsFetcher
 from newslens.data.sources import SourceDatabase, NewsSource
 from newslens.analysis.engine import NewsAnalyzer
@@ -102,13 +104,21 @@ def headlines(country):
     # Initialize components
     # Use mock fetcher for development to avoid network issues
     use_mock_data = config.get("use_mock_data", True)  # Default to mock data for now
-    fetcher = MockNewsFetcher() if use_mock_data else NewsFetcher()
+    
+    if use_mock_data:
+        fetcher = MockNewsFetcher()
+        # Fetch news synchronously for mock data
+        with console.status("Fetching news...", spinner="dots"):
+            news_items = fetcher.fetch_by_country(country_code, config.get("max_items_per_source", 5))
+    else:
+        # Use async fetcher for real data
+        fetcher = AsyncNewsFetcher()
+        # Fetch news asynchronously for real data
+        with console.status("Fetching news...", spinner="dots"):
+            news_items = asyncio.run(fetcher.fetch_by_country(country_code, config.get("max_items_per_source", 5)))
+    
     analyzer = NewsAnalyzer()
     visualizer = NewsVisualizer(console)
-    
-    # Fetch news
-    with console.status("Fetching news...", spinner="dots"):
-        news_items = fetcher.fetch_by_country(country_code, config.get("max_items_per_source", 5))
     
     # Display mock data notice if using mock data
     if config.get("use_mock_data", True):
@@ -169,13 +179,21 @@ def blindspots(country):
     # Initialize components
     # Use mock fetcher for development to avoid network issues
     use_mock_data = config.get("use_mock_data", True)  # Default to mock data for now
-    fetcher = MockNewsFetcher() if use_mock_data else NewsFetcher()
+    
+    if use_mock_data:
+        fetcher = MockNewsFetcher()
+        # Fetch news synchronously for mock data
+        with console.status("Fetching news...", spinner="dots"):
+            news_items = fetcher.fetch_by_country(country_code, config.get("max_items_per_source", 5))
+    else:
+        # Use async fetcher for real data
+        fetcher = AsyncNewsFetcher()
+        # Fetch news asynchronously for real data
+        with console.status("Fetching news...", spinner="dots"):
+            news_items = asyncio.run(fetcher.fetch_by_country(country_code, config.get("max_items_per_source", 5)))
+    
     analyzer = NewsAnalyzer()
     visualizer = NewsVisualizer(console)
-    
-    # Fetch news
-    with console.status("Fetching news...", spinner="dots"):
-        news_items = fetcher.fetch_by_country(country_code, config.get("max_items_per_source", 5))
     
     # Display mock data notice if using mock data
     if config.get("use_mock_data", True):
@@ -377,7 +395,7 @@ def configure(country, max_items, cache_hours, use_mock, use_real):
         table.add_row("Max Items Per Source", str(config.get("max_items_per_source", 5)))
         table.add_row("Cache Hours", str(config.get("cache_hours", 1)))
         table.add_row("Bias Threshold", str(config.get("bias_threshold", 0.2)))
-        table.add_row("Use Mock Data", "Yes" if config.get("use_mock_data", True) else "No")
+        table.add_row("Use Mock Data", "Yes (mock data)" if config.get("use_mock_data", True) else "No (async RSS fetching)")
         
         console.print(table)
         
@@ -422,7 +440,7 @@ def configure(country, max_items, cache_hours, use_mock, use_real):
     
     if use_real:
         config.set("use_mock_data", False)
-        console.print("[bold]Real data mode enabled.[/bold] The application will use actual RSS feeds.")
+        console.print("[bold]Real data mode enabled with async fetching.[/bold] The application will use actual RSS feeds using parallel requests.")
 
 @cli.command()
 def countries():

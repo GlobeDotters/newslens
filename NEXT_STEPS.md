@@ -8,8 +8,10 @@ We've created a solid foundation for the NewsLens CLI application with the follo
    - Modular structure with clear separation of concerns
    - Data models for news sources and articles
    - News fetching from RSS feeds
+   - Asynchronous fetching for improved performance
    - Analysis engine for bias detection and blindspot identification
    - Rich terminal visualization
+   - Article reader mode in terminal
 
 2. **CLI commands**
    - `headlines` - Show top headlines with bias breakdown
@@ -30,20 +32,15 @@ We've created a solid foundation for the NewsLens CLI application with the follo
 
 ### Short-term Improvements
 
-1. **Error handling and robustness**
-   - Add more comprehensive error handling for network failures
-   - Implement graceful fallbacks when feeds are unavailable
-   - Add logging to help diagnose issues
+1. **Non-blocking interactive UI**
+   - Implement a full terminal UI with Textual
+   - Add navigation between stories and articles
+   - Make the UI responsive during data fetching
 
-2. **Testing**
-   - Add more unit tests to increase coverage
-   - Add integration tests for the CLI commands
-   - Test with actual RSS feeds from different sources
-
-3. **UI refinements**
-   - Improve visualization of bias metrics
-   - Add more interactive elements (keyboard shortcuts, pagination)
-   - Optimize display for smaller terminal windows
+2. **Real-time monitoring**
+   - Add daemon mode for continuous monitoring of sources
+   - Implement notifications for new stories
+   - Track stories as they evolve across sources
 
 ### Medium-term Features
 
