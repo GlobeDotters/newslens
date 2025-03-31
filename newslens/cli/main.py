@@ -12,6 +12,7 @@ from rich import box
 
 from newslens import __version__
 from newslens.data.fetcher import NewsFetcher
+from newslens.data.mock import MockNewsFetcher
 from newslens.data.sources import SourceDatabase, NewsSource
 from newslens.analysis.engine import NewsAnalyzer
 from newslens.utils.visualizer import NewsVisualizer, ColorKey
@@ -55,13 +56,19 @@ def headlines(country):
     console.print(f"Fetching news for [bold]{country_name}[/bold]...")
     
     # Initialize components
-    fetcher = NewsFetcher()
+    # Use mock fetcher for development to avoid network issues
+    use_mock_data = config.get("use_mock_data", True)  # Default to mock data for now
+    fetcher = MockNewsFetcher() if use_mock_data else NewsFetcher()
     analyzer = NewsAnalyzer()
     visualizer = NewsVisualizer(console)
     
     # Fetch news
     with console.status("Fetching news...", spinner="dots"):
         news_items = fetcher.fetch_by_country(country_code, config.get("max_items_per_source", 5))
+    
+    # Display mock data notice if using mock data
+    if config.get("use_mock_data", True):
+        console.print("[bold yellow]NOTE:[/bold yellow] Using mock data for demonstration. Use [bold]newslens configure --use-real[/bold] to switch to real RSS feeds.")
     
     if not news_items:
         console.print("[bold yellow]No news found.[/bold yellow] Check your internet connection or try a different country.")
@@ -70,6 +77,10 @@ def headlines(country):
     # Analyze coverage
     with console.status("Analyzing coverage...", spinner="dots"):
         analysis = analyzer.analyze_coverage(news_items, country_code)
+    
+    # Debug output
+    console.print(f"Found {len(news_items)} news items")
+    console.print(f"Produced {len(analysis)} analysis results")
     
     # Display results
     ColorKey.display(console)
@@ -104,13 +115,19 @@ def blindspots(country):
     console.print(f"Finding blindspots in [bold]{country_name}[/bold] news coverage...")
     
     # Initialize components
-    fetcher = NewsFetcher()
+    # Use mock fetcher for development to avoid network issues
+    use_mock_data = config.get("use_mock_data", True)  # Default to mock data for now
+    fetcher = MockNewsFetcher() if use_mock_data else NewsFetcher()
     analyzer = NewsAnalyzer()
     visualizer = NewsVisualizer(console)
     
     # Fetch news
     with console.status("Fetching news...", spinner="dots"):
         news_items = fetcher.fetch_by_country(country_code, config.get("max_items_per_source", 5))
+    
+    # Display mock data notice if using mock data
+    if config.get("use_mock_data", True):
+        console.print("[bold yellow]NOTE:[/bold yellow] Using mock data for demonstration. Use [bold]newslens configure --use-real[/bold] to switch to real RSS feeds.")
     
     if not news_items:
         console.print("[bold yellow]No news found.[/bold yellow] Check your internet connection or try a different country.")
@@ -277,9 +294,11 @@ def remove_source(country, name):
 @click.option('--country', '-c', help='Set default country code (ISO 3166-1 alpha-2)')
 @click.option('--max-items', type=int, help='Maximum number of items to fetch per source')
 @click.option('--cache-hours', type=int, help='Number of hours to cache news data')
-def configure(country, max_items, cache_hours):
+@click.option('--use-mock', is_flag=True, help='Use mock data instead of real RSS feeds')
+@click.option('--use-real', is_flag=True, help='Use real RSS feeds instead of mock data')
+def configure(country, max_items, cache_hours, use_mock, use_real):
     """Configure NewsLens settings."""
-    if not any([country, max_items, cache_hours]):
+    if not any([country, max_items, cache_hours, use_mock, use_real]):
         # Display current configuration
         console.print(Panel("Current Configuration", style="bold blue"))
         
@@ -298,6 +317,7 @@ def configure(country, max_items, cache_hours):
         table.add_row("Max Items Per Source", str(config.get("max_items_per_source", 5)))
         table.add_row("Cache Hours", str(config.get("cache_hours", 1)))
         table.add_row("Bias Threshold", str(config.get("bias_threshold", 0.2)))
+        table.add_row("Use Mock Data", "Yes" if config.get("use_mock_data", True) else "No")
         
         console.print(table)
         
@@ -305,6 +325,8 @@ def configure(country, max_items, cache_hours):
         console.print("  [bold]--country[/bold]: Set default country")
         console.print("  [bold]--max-items[/bold]: Set maximum items per source")
         console.print("  [bold]--cache-hours[/bold]: Set cache duration in hours")
+        console.print("  [bold]--use-mock[/bold]: Use mock data instead of real RSS feeds")
+        console.print("  [bold]--use-real[/bold]: Use real RSS feeds instead of mock data")
         return
     
     # Update settings
@@ -332,6 +354,15 @@ def configure(country, max_items, cache_hours):
             console.print(f"Cache duration set to [bold]{cache_hours} hours[/bold]")
         else:
             console.print("[bold red]Error:[/bold red] Cache hours must be non-negative.")
+            
+    # Handle mock data flags
+    if use_mock:
+        config.set("use_mock_data", True)
+        console.print("[bold]Mock data mode enabled.[/bold] The application will use sample data instead of real RSS feeds.")
+    
+    if use_real:
+        config.set("use_mock_data", False)
+        console.print("[bold]Real data mode enabled.[/bold] The application will use actual RSS feeds.")
 
 @cli.command()
 def countries():

@@ -109,7 +109,8 @@ class SourceDatabase:
         
         # If user database doesn't exist, copy from package data
         if not db_path.exists():
-            default_db = pkg_resources.resource_filename('newslens', 'data/default_sources.json')
+            default_db = pkg_resources.resource_filename('newslens', 'data/defaults/sources.json')
+            print(f"Looking for default sources at: {default_db}")
             if os.path.exists(default_db):
                 with open(default_db, 'r') as f:
                     default_data = json.load(f)
@@ -126,6 +127,12 @@ class SourceDatabase:
             else:
                 # Create empty database
                 self.sources = {}
+                # Load default sources directly
+                default_sources = create_default_sources()
+                for country_code, sources_data in default_sources.items():
+                    self.sources[country_code] = [
+                        NewsSource.from_dict(src) for src in sources_data
+                    ]
         else:
             # Load from user's database
             try:
@@ -230,6 +237,38 @@ def create_default_sources():
                 "bias_score": 4.0,
                 "reliability_score": 8.0,
                 "rss_url": "https://feeds.a.dj.com/rss/RSSWorldNews.xml"
+            },
+            {
+                "name": "MSNBC",
+                "url": "https://www.msnbc.com",
+                "country_code": "US",
+                "bias_score": -7.0,
+                "reliability_score": 6.0,
+                "rss_url": "https://www.msnbc.com/feeds/latest"
+            },
+            {
+                "name": "Breitbart",
+                "url": "https://www.breitbart.com",
+                "country_code": "US",
+                "bias_score": 8.0,
+                "reliability_score": 3.0,
+                "rss_url": "https://feeds.feedburner.com/breitbart"
+            },
+            {
+                "name": "NPR",
+                "url": "https://www.npr.org",
+                "country_code": "US",
+                "bias_score": -2.0,
+                "reliability_score": 8.0,
+                "rss_url": "https://feeds.npr.org/1001/rss.xml"
+            },
+            {
+                "name": "Washington Post",
+                "url": "https://www.washingtonpost.com",
+                "country_code": "US",
+                "bias_score": -3.0,
+                "reliability_score": 8.0,
+                "rss_url": "https://feeds.washingtonpost.com/rss/national"
             }
         ],
         "UK": [
@@ -256,6 +295,22 @@ def create_default_sources():
                 "bias_score": 6.0,
                 "reliability_score": 4.0,
                 "rss_url": "https://www.dailymail.co.uk/home/index.rss"
+            },
+            {
+                "name": "The Telegraph",
+                "url": "https://www.telegraph.co.uk",
+                "country_code": "UK",
+                "bias_score": 5.0,
+                "reliability_score": 7.0,
+                "rss_url": "https://www.telegraph.co.uk/rss.xml"
+            },
+            {
+                "name": "The Independent",
+                "url": "https://www.independent.co.uk",
+                "country_code": "UK",
+                "bias_score": -2.0,
+                "reliability_score": 7.0,
+                "rss_url": "https://www.independent.co.uk/news/uk/rss"
             }
         ]
     }

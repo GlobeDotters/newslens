@@ -48,6 +48,7 @@ class Config:
             "max_items_per_source": 5,
             "cache_hours": 1,
             "bias_threshold": 0.2,  # For blindspot detection
+            "use_mock_data": True,  # Default to mock data for development
             "ui": {
                 "color_theme": "default",
                 "show_descriptions": True
