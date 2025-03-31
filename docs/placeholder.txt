@@ -1,0 +1,8 @@
+This directory will hold screenshots and other documentation assets.
+
+For example:
+- Screenshot of headlines command
+- Screenshot of reader mode
+- Screenshot of blindspots analysis
+
+Add screenshot of the reader mode in action to demonstrate the CLI capabilities.

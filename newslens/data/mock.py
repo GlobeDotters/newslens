@@ -213,6 +213,28 @@ def get_mock_news_items_raw(country_code: str = "US") -> List[Dict]:
         }
     ]
     
+    # Add article content to each item
+    for item_list in [us_items, uk_items, ca_items, au_items]:
+        for item in item_list:
+            if "content" not in item:
+                # Create a mock article content based on the title and description
+                title = item["title"]
+                description = item.get("description", "")
+                source_name = item["source_name"]
+                
+                # Generate paragraphs
+                paragraphs = [
+                    f"{description}",
+                    f"This article from {source_name} explores the implications of {title.lower()}.",
+                    f"Experts have weighed in on various aspects of this development.",
+                    f"According to some analysts, this could have significant effects on policy and public opinion.",
+                    f"Others remain skeptical about the long-term impact of these developments.",
+                    f"Only time will tell how this situation unfolds in the coming weeks and months."
+                ]
+                
+                # Join paragraphs into a full article
+                item["content"] = "\n\n".join(paragraphs)
+    
     country_map = {
         "US": us_items,
         "UK": uk_items,

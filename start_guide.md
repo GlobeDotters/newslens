@@ -19,18 +19,24 @@ We've set up a Python CLI application called NewsLens that analyzes news coverag
    newslens headlines
    ```
 
-4. Try the blindspots command to see stories with imbalanced coverage:
+4. Read any article in full using reader mode:
+   ```bash
+   newslens read 1  # Read the first story in the list
+   newslens read 2 --source "CNN"  # Read a specific source's version of the second story
+   ```
+
+5. Try the blindspots command to see stories with imbalanced coverage:
    ```bash
    newslens blindspots
    ```
 
-5. View news sources for different countries:
+6. View news sources for different countries:
    ```bash
    newslens sources --country US
    newslens sources --country UK
    ```
 
-6. Configure settings, such as changing the default country:
+7. Configure settings, such as changing the default country:
    ```bash
    newslens configure --country UK
    ```

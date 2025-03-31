@@ -4,7 +4,7 @@ News analysis engine for detecting bias and blindspots.
 
 import sys
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
@@ -19,8 +19,8 @@ class StoryCluster:
     """A cluster of related news items considered to be the same story."""
     
     title: str
-    items: List[NewsItem]
-    sources: List[str]
+    items: List[NewsItem] = field(default_factory=list)
+    sources: List[str] = field(default_factory=list)
     
     @property
     def item_count(self) -> int:
@@ -50,18 +50,10 @@ class CoverageAnalysis:
     left_sources: int = 0
     center_sources: int = 0
     right_sources: int = 0
-    left_leaning_sources: List[str] = None
-    center_leaning_sources: List[str] = None
-    right_leaning_sources: List[str] = None
+    left_leaning_sources: List[str] = field(default_factory=list)
+    center_leaning_sources: List[str] = field(default_factory=list)
+    right_leaning_sources: List[str] = field(default_factory=list)
     blindspot: Optional[str] = None
-    
-    def __post_init__(self):
-        if self.left_leaning_sources is None:
-            self.left_leaning_sources = []
-        if self.center_leaning_sources is None:
-            self.center_leaning_sources = []
-        if self.right_leaning_sources is None:
-            self.right_leaning_sources = []
 
 
 class NewsAnalyzer:

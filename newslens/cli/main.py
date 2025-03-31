@@ -3,8 +3,12 @@
 NewsLens CLI - Main entry point
 """
 
+import sys
 import click
 import pycountry
+import json
+import pickle
+from pathlib import Path
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -20,6 +24,46 @@ from newslens.utils.config import Config
 
 console = Console()
 config = Config()
+
+# Cache for the last analysis results
+last_headlines = []
+
+# File to store headlines between commands
+def get_cache_dir() -> Path:
+    """Get the cache directory, creating it if necessary."""
+    home = Path.home()
+    cache_dir = home / ".cache" / "newslens"
+    
+    if not cache_dir.exists():
+        cache_dir.mkdir(parents=True, exist_ok=True)
+    
+    return cache_dir
+
+def save_headlines(headlines):
+    """Save headlines to a cache file."""
+    cache_dir = get_cache_dir()
+    cache_file = cache_dir / "headlines_cache.pickle"
+    
+    try:
+        with open(cache_file, 'wb') as f:
+            pickle.dump(headlines, f)
+    except Exception as e:
+        print(f"Error saving headlines cache: {e}", file=sys.stderr)
+
+def load_headlines():
+    """Load headlines from cache file."""
+    cache_dir = get_cache_dir()
+    cache_file = cache_dir / "headlines_cache.pickle"
+    
+    if not cache_file.exists():
+        return []
+    
+    try:
+        with open(cache_file, 'rb') as f:
+            return pickle.load(f)
+    except Exception as e:
+        print(f"Error loading headlines cache: {e}", file=sys.stderr)
+        return []
 
 @click.group()
 @click.version_option(__version__)
@@ -85,6 +129,14 @@ def headlines(country):
     # Display results
     ColorKey.display(console)
     visualizer.display_analysis(analysis, country_name)
+    
+    # Save the analysis results for later reference
+    global last_headlines
+    last_headlines = analysis
+    save_headlines(analysis)
+    
+    # Show instructions for reading articles
+    console.print("\nTo read any article in full, use: [bold]newslens read STORY_NUMBER[/bold]")
 
 @cli.command()
 @click.option('--country', '-c', help='Country code (ISO 3166-1 alpha-2) or name')
@@ -148,6 +200,14 @@ def blindspots(country):
     
     ColorKey.display(console)
     visualizer.display_analysis(blindspot_analysis, country_name)
+    
+    # Save the analysis results for later reference
+    global last_headlines
+    last_headlines = blindspot_analysis
+    save_headlines(blindspot_analysis)
+    
+    # Show instructions for reading articles
+    console.print("\nTo read any article in full, use: [bold]newslens read STORY_NUMBER[/bold]")
 
 @cli.command()
 @click.option('--country', '-c', help='Country code (ISO 3166-1 alpha-2) or name to filter sources')
@@ -380,6 +440,70 @@ def countries():
         table.add_row(country.name, country.alpha_2)
     
     console.print(table)
+
+
+@cli.command()
+@click.argument('story_number', type=int)
+@click.option('--source', '-s', help='Specific source to read from')
+def read(story_number, source):
+    """Read a specific story in reader mode."""
+    # Load headlines from cache
+    global last_headlines
+    if not last_headlines:
+        last_headlines = load_headlines()
+    
+    # Check if we have any headlines cached
+    if not last_headlines:
+        console.print("[bold yellow]No stories available.[/bold yellow] Run 'newslens headlines' first to fetch stories.")
+        return
+    
+    # Adjust for 1-based indexing in display
+    index = story_number - 1
+    
+    # Validate the story number
+    if index < 0 or index >= len(last_headlines):
+        console.print(f"[bold red]Error:[/bold red] Story number {story_number} is out of range. Available range is 1-{len(last_headlines)}.")
+        return
+    
+    # Get the selected story
+    selected_story = last_headlines[index]
+    
+    # If a specific source was requested, find that article version
+    if source:
+        source_items = [item for item in selected_story.story.items if item.source_name.lower() == source.lower()]
+        if not source_items:
+            console.print(f"[bold yellow]Source not found.[/bold yellow] '{source}' does not have an article for this story.")
+            sources_list = ", ".join([item.source_name for item in selected_story.story.items])
+            console.print(f"Available sources: {sources_list}")
+            return
+        
+        article = source_items[0]
+    else:
+        # Just take the first article in the cluster
+        article = selected_story.story.items[0]
+    
+    # Display the article in reader mode
+    title = article.title
+    source_name = article.source_name
+    url = article.url
+    content = article.content or "No content available for this article."
+    
+    # Display the article
+    console.print(Panel(f"[bold]{title}[/bold]", style="bold blue"))
+    console.print(f"Source: [bold]{source_name}[/bold]")
+    console.print(f"URL: {url}\n")
+    
+    # Display article content in a nicely formatted way
+    for paragraph in content.split("\n\n"):
+        console.print(paragraph)
+        console.print("")
+    
+    # List other available sources
+    if len(selected_story.story.items) > 1:
+        console.print("\n[bold]Also covered by:[/bold]")
+        other_sources = [item.source_name for item in selected_story.story.items if item.source_name != source_name]
+        console.print(", ".join(other_sources))
+        console.print("\nUse [bold]newslens read " + str(story_number) + " --source SOURCE[/bold] to read a different version.")
 
 if __name__ == '__main__':
     cli()
