@@ -15,6 +15,8 @@ setup(
         "aiohttp>=3.8.0",
         "feedparser>=6.0.0",
         "pycountry>=20.0.0",
+        "newspaper3k>=0.2.8",
+        "beautifulsoup4>=4.9.0",
     ],
     extras_require={
         "dev": [

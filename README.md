@@ -15,8 +15,8 @@ NewsLens is a command-line tool that helps you understand news coverage across t
 - 📊 Coverage visualization across political spectrum
 - 🔄 Local news source database with bias classifications
 - 🔊 Asynchronous news fetching for improved performance
+- 📝 Full article extraction and reader mode
 - 📱 Terminal-based UI with rich visualization
-- 📖 Reader mode for reading articles in the terminal
 
 ## Installation
 
@@ -44,6 +44,9 @@ newslens read 1
 
 # Read an article from a specific source
 newslens read 1 --source "CNN"
+
+# Clear cached articles and data
+newslens clear_cache
 
 # Show stories with blindspots in coverage
 newslens blindspots

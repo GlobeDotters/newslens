@@ -114,7 +114,23 @@ class NewsAnalyzer:
         if len(clusters) <= 5:  # If we have few clusters, they're likely mock data
             significant_clusters = clusters
         else:
-            significant_clusters = [c for c in clusters if len(c.items) >= 2]
+            # First try to get multi-source stories
+            multi_source_clusters = [c for c in clusters if len(c.items) >= 2]
+            
+            # If we don't have enough multi-source stories, include some single-source ones
+            if len(multi_source_clusters) < 5:
+                # Sort by recency
+                single_source_clusters = [c for c in clusters if len(c.items) == 1]
+                single_source_clusters.sort(key=lambda x: x.recency, reverse=True)
+                
+                # Take the most recent single-source stories
+                needed = 5 - len(multi_source_clusters)
+                significant_clusters = multi_source_clusters + single_source_clusters[:needed]
+            else:
+                significant_clusters = multi_source_clusters
+            
+            # Sort by recency
+            significant_clusters.sort(key=lambda x: x.recency, reverse=True)
             
         # Debug info
         print(f"Number of items: {len(items)}", file=sys.stderr)

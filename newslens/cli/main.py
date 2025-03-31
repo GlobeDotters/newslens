@@ -23,6 +23,7 @@ from newslens.data.sources import SourceDatabase, NewsSource
 from newslens.analysis.engine import NewsAnalyzer
 from newslens.utils.visualizer import NewsVisualizer, ColorKey
 from newslens.utils.config import Config
+from newslens.data.article_extractor import ArticleExtractor
 
 console = Console()
 config = Config()
@@ -461,6 +462,32 @@ def countries():
 
 
 @cli.command()
+def clear_cache():
+    """Clear all cached articles and news data."""
+    # Clear headlines cache
+    cache_dir = get_cache_dir()
+    cache_file = cache_dir / "headlines_cache.pickle"
+    
+    if cache_file.exists():
+        try:
+            cache_file.unlink()
+            console.print("[bold green]Headlines cache cleared.[/bold green]")
+        except Exception as e:
+            console.print(f"[bold red]Error clearing headlines cache:[/bold red] {e}")
+    
+    # Clear article cache
+    article_cache_dir = Path.home() / ".cache" / "newslens" / "articles"
+    if article_cache_dir.exists():
+        try:
+            cache_files = list(article_cache_dir.glob("*.json"))
+            for file in cache_files:
+                file.unlink()
+            console.print(f"[bold green]Cleared {len(cache_files)} cached articles.[/bold green]")
+        except Exception as e:
+            console.print(f"[bold red]Error clearing article cache:[/bold red] {e}")
+
+
+@cli.command()
 @click.argument('story_number', type=int)
 @click.option('--source', '-s', help='Specific source to read from')
 def read(story_number, source):
@@ -504,17 +531,51 @@ def read(story_number, source):
     title = article.title
     source_name = article.source_name
     url = article.url
-    content = article.content or "No content available for this article."
+    content = article.content
+    
+    # If no content is available, try to fetch it
+    if not content or content == "No content available for this article.":
+        with console.status(f"[bold cyan]Fetching article from {source_name}...[/bold cyan]", spinner="dots"):
+            extractor = ArticleExtractor()
+            _, extracted_text, _ = extractor.extract_content_sync(url)
+            
+            if extracted_text:
+                content = extracted_text
+                console.print(f"[bold green]Successfully retrieved article content![/bold green]")
+                # Update the article object with the extracted content
+                article.content = content
+                # Save updated headlines to cache
+                save_headlines(last_headlines)
+            else:
+                content = "Could not extract article content. Please visit the URL to read the full article."
+                console.print(f"[bold yellow]Could not retrieve article content.[/bold yellow] Visit the URL to read the full article.")
     
     # Display the article
-    console.print(Panel(f"[bold]{title}[/bold]", style="bold blue"))
+    title_panel = Panel(
+        f"[bold]{title}[/bold]",
+        style="bold blue",
+        expand=False,
+        padding=(1, 2)
+    )
+    console.print(title_panel)
     console.print(f"Source: [bold]{source_name}[/bold]")
     console.print(f"URL: {url}\n")
     
     # Display article content in a nicely formatted way
-    for paragraph in content.split("\n\n"):
-        console.print(paragraph)
-        console.print("")
+    paragraphs = content.split("\n")
+    # Remove empty paragraphs and trim whitespace
+    paragraphs = [p.strip() for p in paragraphs if p.strip()]
+    
+    # Display with progress indicator for long articles
+    if len(paragraphs) > 10:
+        with console.pager():
+            for paragraph in paragraphs:
+                console.print(paragraph)
+                console.print("")
+    else:
+        for paragraph in paragraphs:
+            console.print(paragraph)
+            console.print("")
     
     # List other available sources
     if len(selected_story.story.items) > 1:
