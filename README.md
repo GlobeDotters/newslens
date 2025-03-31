@@ -2,11 +2,11 @@
 
 An open-source news bias analyzer for the terminal.
 
+![NewsLens TUI - Coming Soon](docs/placeholder.png)
+
 ## Overview
 
 NewsLens is a command-line tool that helps you understand news coverage across the political spectrum. It identifies blindspots in coverage and provides insights into media bias for stories in your country.
-
-![Screenshot example](https://github.com/yourusername/newslens/raw/main/docs/screenshot.png)
 
 ## Features
 
@@ -16,7 +16,8 @@ NewsLens is a command-line tool that helps you understand news coverage across t
 - 🔄 Local news source database with bias classifications
 - 🔊 Asynchronous news fetching for improved performance
 - 📝 Full article extraction and reader mode
-- 📱 Terminal-based UI with rich visualization
+- 📱 Interactive Terminal User Interface (TUI)
+- 💡 Bias detection and blindspot analysis
 
 ## Installation
 
@@ -30,9 +31,20 @@ cd newslens
 pip install -e .
 ```
 
+### TUI Dependencies
+
+To use the interactive TUI, you'll need to install the required dependencies:
+
+```bash
+pip install textual
+```
+
 ## Usage
 
 ```bash
+# Launch the interactive Terminal User Interface
+newslens tui
+
 # Show top headlines with political bias breakdown
 newslens headlines
 

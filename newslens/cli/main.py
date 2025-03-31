@@ -583,6 +583,13 @@ def read(story_number, source):
         other_sources = [item.source_name for item in selected_story.story.items if item.source_name != source_name]
         console.print(", ".join(other_sources))
         console.print("\nUse [bold]newslens read " + str(story_number) + " --source SOURCE[/bold] to read a different version.")
+@cli.command()
+def tui():
+    """Launch the interactive Terminal User Interface."""
+    from newslens.tui.app import run_app
+    console.print("[bold]Starting NewsLens TUI...[/bold]")
+    run_app()
+
 
 if __name__ == '__main__':
     cli()

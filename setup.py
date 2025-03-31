@@ -17,6 +17,7 @@ setup(
         "pycountry>=20.0.0",
         "newspaper3k>=0.2.8",
         "beautifulsoup4>=4.9.0",
+        "textual>=0.21.0",
     ],
     extras_require={
         "dev": [
