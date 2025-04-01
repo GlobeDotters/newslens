@@ -3,9 +3,12 @@ NewsLens TUI main application.
 """
 
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 from functools import partial
+import re
+import shutil
+from pathlib import Path
 
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, Vertical, ScrollableContainer
@@ -18,6 +21,7 @@ from rich.text import Text
 from ..data.async_fetcher import AsyncNewsFetcher
 from ..data.mock import MockNewsFetcher
 from ..data.article_extractor import ArticleExtractor
+from ..data.sources import SourceDatabase
 from ..analysis.engine import NewsAnalyzer, CoverageAnalysis
 from ..utils.config import Config
 
@@ -28,21 +32,21 @@ class HeadlinesTable(DataTable):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.cursor_type = "row"
-        self.add_column("Title", width=50)
+        self.add_column("Title", width=35)
         self.add_column("", width=1)  # Color indicator
-        self.add_column("Left", width=5)
-        self.add_column("Center", width=7) 
-        self.add_column("Right", width=6)
-        self.add_column("Source", width=15)
+        self.add_column("Political Spectrum", width=20)
+        self.add_column("Source", width=16)
+        self.add_column("Published", width=16)
         self.zebra_stripes = True
 
     def add_headline(self, idx: int, story: CoverageAnalysis) -> None:
         """Add a headline to the table."""
         title = story.story.title
         
-        if len(title) > 70:
-            title = title[:67] + "..."
+        if len(title) > 35:
+            title = title[:32] + "..."
         
+        # Create bias indicator
         bias_indicator = "●"
         if story.left_sources > 0 and story.right_sources == 0:
             bias_class = "bias-left"
@@ -56,21 +60,104 @@ class HeadlinesTable(DataTable):
         bias_text = Text(bias_indicator)
         bias_text.stylize(bias_class)
         
+        # Create a 10-square bar that shows the political spectrum
+        total_sources = story.left_sources + story.center_sources + story.right_sources
+        if total_sources > 0:
+            # Get the actual bias scores from the sources
+            source_db = SourceDatabase()
+            bias_scores = []
+            
+            # For each news source in the story, get its bias score
+            for item in story.story.items:
+                source_name = item.source_name
+                sources = source_db.get_sources_by_name(source_name)
+                if sources and len(sources) > 0:
+                    bias_scores.append(sources[0].bias_score)
+            
+            # Create a base 10-square empty bar (score runs from -10 to +10)
+            base_bar = "□" * 10  # □□□□□□□□□□
+            bias_bar = Text(base_bar, style="dim")
+            
+            # 10 squares represent the full -10 to +10 scale
+            # Squares 0-3 for left, 4-6 for center, 7-9 for right
+            # Calculate which squares to fill based on source bias scores
+            filled_squares = set()
+            
+            for score in bias_scores:
+                # Convert the -10 to +10 scale to 0-9 index
+                # -10 to -3.4 = Left (squares 0-2)
+                # -3.3 to +3.3 = Center (squares 3-6)
+                # +3.4 to +10 = Right (squares 7-9)
+                
+                # Map the score to the appropriate square
+                if score <= -6.7:  # Far left
+                    filled_squares.add(0)
+                elif score <= -3.4:  # Left
+                    filled_squares.add(1)
+                    filled_squares.add(2)
+                elif score <= 0:  # Left-leaning center
+                    filled_squares.add(3)
+                    filled_squares.add(4)
+                elif score <= 3.3:  # Right-leaning center
+                    filled_squares.add(5)
+                    filled_squares.add(6)
+                elif score <= 6.7:  # Right
+                    filled_squares.add(7)
+                    filled_squares.add(8)
+                else:  # Far right
+                    filled_squares.add(9)
+            
+            # Create colored squares
+            squares = []
+            for i in range(10):
+                if i in filled_squares:
+                    if i <= 2:  # Left region
+                        squares.append(Text("■", style="blue bold"))  # ■
+                    elif i <= 6:  # Center region
+                        squares.append(Text("■", style="green bold"))  # ■
+                    else:  # Right region
+                        squares.append(Text("■", style="red bold"))  # ■
+                else:
+                    squares.append(Text("□", style="dim"))  # □
+            
+            # Assemble the political spectrum bar
+            bias_bar = Text("")
+            for square in squares:
+                bias_bar.append(square)
+        else:
+            # No sources - just show an empty bar
+            bias_bar = Text("□" * 10, style="dim")  # □□□□□□□□□□
+        
         first_source = story.story.sources[0] if story.story.sources else ""
+        
+        # Format the published date and time
+        published_at = None
+        if story.story.items:
+            published_at = story.story.items[0].published_at
+        
+        formatted_date = ""
+        if published_at:
+            # Always include the date for consistency
+            formatted_date = published_at.strftime("%b %d, %H:%M")
         
         self.add_row(
             title,
             bias_text, 
-            str(story.left_sources),
-            str(story.center_sources),
-            str(story.right_sources),
+            bias_bar,
             first_source,
+            formatted_date,
             key=str(idx)
         )
-
+        
     def clear_headlines(self) -> None:
         """Clear all headlines from the table."""
         self.clear()
+        
+    async def on_focus(self) -> None:
+        """Handle focus events on the headlines table."""
+        app = self.app
+        if hasattr(app, 'set_status'):
+            app.set_status("Headlines View - Use Up/Down to navigate, Enter to read article", "green bold")
 
 
 class ArticleView(ScrollableContainer):
@@ -92,13 +179,15 @@ class ArticleView(ScrollableContainer):
     article_source = reactive("")
     article_url = reactive("")
     article_content = reactive("")
+    article_published_at = reactive(None)
 
-    def load_article(self, title: str, source: str, url: str, content: str) -> None:
+    def load_article(self, title: str, source: str, url: str, content: str, published_at: Optional[datetime] = None) -> None:
         """Load article content into the view."""
         # First set properties
         self.article_title = title
         self.article_source = source
         self.article_url = url
+        self.article_published_at = published_at
         # Update content last to trigger the update
         self.article_content = content
 
@@ -129,6 +218,12 @@ class ArticleView(ScrollableContainer):
     async def action_scroll_end(self) -> None:
         """Scroll to the bottom of the content."""
         self.scroll_end()
+        
+    async def on_focus(self) -> None:
+        """Handle focus events on the article view."""
+        app = self.app
+        if hasattr(app, 'set_status'):
+            app.set_status("Article View - Use Up/Down/PgUp/PgDn/Home/End to navigate", "cyan bold")
 
     def update_content(self) -> None:
         """Update the displayed content."""
@@ -162,18 +257,40 @@ Keyboard shortcuts:
         
         # Create main content with proper formatting
         main_content = [
-            Text(f"\n{self.article_title}", style="bold"),
-            Text(f"\n{self.article_source} • ", style="italic"),
-            Text(f"{self.article_url}", style=f"underline link {self.article_url}"),
-            Text("\n\n", style="")
+            Text(f"\n{self.article_title}", style="bold white on #6b21a8"),
+            Text("\n"),
+            Text(f"{self.article_source}", style="italic yellow")
         ]
+        
+        # Add publication date if available
+        if self.article_published_at:
+            formatted_date = self.article_published_at.strftime("%B %d, %Y at %H:%M")
+            main_content.append(Text(" • ", style="dim"))
+            main_content.append(Text(f"Published {formatted_date}", style="cyan"))
+            
+        # Add URL and separator
+        main_content.extend([
+            Text("\n"),
+            Text(f"{self.article_url}", style=f"underline link {self.article_url}"),
+            Text("\n\n", style=""),
+            # Add a separator line
+            Text("━" * 50, style="dim"),
+            Text("\n\n", style="")
+        ])
 
         # Add article content paragraphs
         if self.article_content:
-            paragraphs = self.article_content.split('\n')
-            for paragraph in paragraphs:
+            # Split by double newlines to get paragraphs
+            paragraphs = re.split(r'\n\n+', self.article_content)
+            for i, paragraph in enumerate(paragraphs):
                 if paragraph.strip():
-                    main_content.append(Text(paragraph + "\n"))
+                    # First paragraph styling (often the lede)
+                    if i == 0:
+                        main_content.append(Text(paragraph, style="bold italic"))
+                    else:
+                        main_content.append(Text(paragraph, style=""))
+                    # Add extra spacing between paragraphs for better readability
+                    main_content.append(Text("\n\n\n", style=""))
 
         # Combine all elements and update
         final_content = Text.assemble(*main_content)
@@ -240,9 +357,14 @@ class NewsLensApp(App):
                 ),
                 Button("Refresh", id="refresh-button", variant="primary"),
                 Button(
-                    "Mock Data: ON" if self.use_mock_data else "Mock Data: OFF",
+                    "Mock Data: ON" if self.use_mock_data else "Real Data: ON",
                     id="mock-button", 
-                    variant="default"
+                    variant="warning" if self.use_mock_data else "success"
+                ),
+                Button(
+                    "Clear Cache",
+                    id="clear-cache-button",
+                    variant="error"
                 )
             ),
             HeadlinesTable(id="headlines-table"),
@@ -263,6 +385,8 @@ class NewsLensApp(App):
             self.refresh_headlines()
         elif button_id == "mock-button":
             await self.action_toggle_mock()
+        elif button_id == "clear-cache-button":
+            await self.clear_cache()
     
     async def on_select_changed(self, event: Select.Changed) -> None:  
         """Event handler for select changes."""
@@ -279,10 +403,41 @@ class NewsLensApp(App):
             except (ValueError, IndexError):
                 self.notify("Invalid story selection", severity="error")
         
+    async def clear_cache(self) -> None:
+        """Clear all cached articles and news data."""
+        # Set status
+        self.set_status("Clearing cache...", "yellow bold")
+        
+        try:
+            # Clear article cache
+            cache_dir = Path.home() / ".cache" / "newslens"
+            if cache_dir.exists():
+                shutil.rmtree(cache_dir)
+                cache_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Reset the article extractor to use the new cache dir
+            self.article_extractor = ArticleExtractor()
+            
+            # Show success message
+            self.set_status("Cache cleared successfully", "green bold")
+            self.notify("Cache has been cleared", title="Success", severity="information")
+            
+            # Refresh headlines
+            self.refresh_headlines()
+        except Exception as e:
+            self.set_status(f"Error clearing cache: {str(e)}", "red bold")
+            self.notify(f"Error: {str(e)}", title="Cache Clear Failed", severity="error")
+    
     async def action_toggle_mock(self) -> None:
         """Toggle between mock and real data."""  
         self.use_mock_data = not self.use_mock_data  
         self.config.set("use_mock_data", self.use_mock_data)
+        
+        # Update the button text and style
+        mock_button = self.query_one("#mock-button")
+        mock_button.label = "Mock Data: ON" if self.use_mock_data else "Real Data: ON"
+        mock_button.variant = "warning" if self.use_mock_data else "success"
+        
         self.refresh_headlines()
     
     async def action_cycle_country(self) -> None:
@@ -327,7 +482,19 @@ class NewsLensApp(App):
                     headlines_table.add_headline(idx, story)
                 
                 now = datetime.now().strftime("%H:%M")
-                self.set_status(f"Updated at {now} - {len(self.stories)} stories", "green bold")
+                
+                # Update the status bar with a color legend
+                status_bar = self.query_one(StatusBar)
+                status_text = Text(f"Updated at {now} - {len(self.stories)} stories | Political bias scale: ")
+                status_text.append(Text("■", style="blue bold"))
+                status_text.append(Text(" Far Left / Left ", style="white"))
+                status_text.append(Text("■", style="green bold"))
+                status_text.append(Text(" Center ", style="white"))
+                status_text.append(Text("■", style="red bold"))
+                status_text.append(Text(" Right / Far Right ", style="white"))
+                status_text.append(Text("□", style="dim"))
+                status_text.append(Text(" No Coverage", style="white"))
+                status_bar.update(status_text)
         
         except Exception as e:
             self.set_status(f"Error: {str(e)}", "red bold")
@@ -341,12 +508,24 @@ class NewsLensApp(App):
         story = self.stories[idx]
         article = story.story.items[0]
         
+        # Get bias information
+        bias_info = ""
+        if story.left_sources > 0 and story.right_sources == 0:
+            bias_info = " (Only covered by left-leaning sources)"
+        elif story.right_sources > 0 and story.left_sources == 0:
+            bias_info = " (Only covered by right-leaning sources)"
+        elif story.center_sources > 0 and story.left_sources == 0 and story.right_sources == 0:
+            bias_info = " (Only covered by center sources)"
+        elif story.left_sources > 0 and story.right_sources > 0:
+            bias_info = " (Covered across political spectrum)"
+        
         article_view = self.query_one(ArticleView)
         article_view.load_article(
             title=article.title,
-            source=article.source_name,
+            source=f"{article.source_name}{bias_info}",
             url=article.url,
-            content=article.content or ""
+            content=article.content or "",
+            published_at=article.published_at
         )
         
         if not article.content:

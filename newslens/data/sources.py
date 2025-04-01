@@ -188,6 +188,15 @@ class SourceDatabase:
             return True
         return False
     
+    def get_sources_by_name(self, source_name: str) -> List[NewsSource]:
+        """Get sources by name, searching across all countries."""
+        matching_sources = []
+        for country_sources in self.sources.values():
+            for source in country_sources:
+                if source.name.lower() == source_name.lower():
+                    matching_sources.append(source)
+        return matching_sources
+    
     def get_available_countries(self) -> List[str]:
         """Get list of country codes with available sources."""
         return list(self.sources.keys())

@@ -63,7 +63,7 @@ class ArticleExtractor:
             print(f"Error saving article to cache: {e}")
             
     def _clean_text(self, text: str) -> str:
-        """Clean up extracted text to remove common noise."""
+        """Clean up extracted text to remove common noise and improve formatting."""
         if not text:
             return text
             
@@ -71,24 +71,57 @@ class ArticleExtractor:
         patterns_to_remove = [
             # Social media buttons and text
             r"(Copy Link|Print|Email|X|LinkedIn|Bluesky|Flipboard|Pinterest|Reddit)\s*(copied|Read More)",
-            r"Share this article",
+            r"Share this (article|story|post)",
             r"Share on \w+",
+            r"Follow us on \w+",
+            r"Read on (Flipboard|Twitter|Facebook|LinkedIn|X)",
+            r"View on (Flipboard|Twitter|Facebook|LinkedIn|X)",
+            r"Share this article on (Flipboard|Twitter|Facebook|LinkedIn|X|Pinterest|Reddit)",
+            r"View original article on (Flipboard|Twitter|Facebook|LinkedIn|X|Pinterest|Reddit)",
+            
+            # Social media and RSS feed references
+            r"Flipboard",
+            r"Read more on Flipboard",
+            r"Read the original article on \w+",
+            r"View the original article on \w+",
+            r"Source: \w+",
+            r"Via \w+ feed",
+            r"From \w+ feed",
+            r"RSS Feed",
+            r"View in \w+",
+            r"View on \w+",
+            r"via \w+",
+            
             # Navigation
             r"(Next|Previous) Article",
             # Comments sections markers
             r"\d+ Comments",
             r"Show Comments",
+            r"Comment[s]? \(\d+\)",
             # Cookie notices
             r"We use cookies",
             r"Accept (all )?cookies",
+            r"This website uses cookies",
             # Subscribe prompts
             r"Subscribe (now|today)",
             r"Sign up for our newsletter",
+            r"Join our \w+ newsletter",
             # Loading indicators
-            r"Loading\.\.\."   ,
+            r"Loading\.\.\.",
+            # Advertisement/sponsor text
+            r"Advertisement",
+            r"Sponsored",
+            r"Sponsored Content",
+            r"ADVERTISEMENT",
             # AP News specific patterns
             r"Copy Link copied",
-            r"Print Email Read More"         
+            r"Print Email Read More",
+            # Social media blocks
+            r"SHARE THIS ARTICLE",
+            r"Share Tweet",
+            r"\d+ shares",
+            # URLS that might be in text
+            r"https?://[\w\d\./\-_]+"
         ]
         
         # Apply all the patterns
@@ -98,34 +131,55 @@ class ArticleExtractor:
         # Remove excessive newlines (more than 2 in a row)
         text = re.sub(r"\n{3,}", "\n\n", text)
         
-        # Remove lines that are just social media service names
-        social_media = ["Facebook", "Twitter", "Instagram", "LinkedIn", "Pinterest", "Reddit", "YouTube", "TikTok"]
+        # Remove lines that are just social media service names or UI elements
+        social_media = ["Facebook", "Twitter", "X", "Instagram", "LinkedIn", "Pinterest", "Reddit", "YouTube", "TikTok", "Threads", "Bluesky", "Flipboard"]
+        ui_elements = ["close", "cancel", "accept", "continue reading", "read more", "read full article", "back to top", "more", "next", "previous"]
         lines = text.split('\n')
         cleaned_lines = []
         
         for line in lines:
             line = line.strip()
-            # Skip empty lines or lines that are just social media names
-            if not line or line in social_media:
+            # Skip empty lines
+            if not line:
                 continue
+                
+            # Skip social media platform names
+            if line in social_media:
+                continue
+                
             # Skip very short lines that might be UI elements
             if len(line) < 4 and not line.isdigit():
                 continue
+                
+            # Skip common UI elements and buttons text
+            if line.lower() in ui_elements:
+                continue
+                
             # Skip advertisement markers
-            if line.lower() in ['advertisement', 'ad', 'sponsored', 'advertisement.', 'sponsored content']:
+            if line.lower() in ['advertisement', 'ad', 'sponsored', 'advertisement.', 'sponsored content', 'click to read more', 'flipboard']:
                 continue
-            # Remove lines with just button text or common UI elements
-            if line.lower() in ['close', 'cancel', 'accept', 'continue reading', 'read more']:
+                
+            # Skip if the line is just a social media/RSS feed reference
+            if any(service in line for service in ['Flipboard', 'RSS Feed', 'Subscribe', 'Newsletter']):
+                if len(line.split()) < 5:  # Only skip short lines that are likely just labels
+                    continue
+                
+            # Skip timestamp lines (often found in articles)
+            if re.match(r'^\d{1,2}:\d{2} (AM|PM)|^[A-Za-z]{3} \d{1,2}, \d{4}|^\d{1,2}/\d{1,2}/\d{2,4}$', line):
                 continue
-            
-            # Clean up lines with Copy Link etc.
-            if any(term in line for term in ['Copy Link', 'Share', 'Email', 'Print']):
+                
+            # Clean up lines with social sharing options
+            if any(term in line for term in ['Copy Link', 'Share', 'Email', 'Print', 'Posted']) and len(line.split()) < 10:
                 # If the line is mostly about sharing/copying, skip it
-                share_terms = ['copy', 'link', 'share', 'email', 'print', 'facebook', 'twitter']
+                share_terms = ['copy', 'link', 'share', 'email', 'print', 'facebook', 'twitter', 'posted', 'updated', 'flipboard', 'feed', 'read', 'view', 'original']
                 words = line.lower().split()
-                if len(words) < 10 and sum(word in share_terms for word in words) / len(words) > 0.3:
+                if words and sum(word in share_terms for word in words) / len(words) > 0.3:
                     continue
             
+            # Some articles have strange encoding artifacts or random characters
+            if len(line) < 10 and ('\ufffd' in line or re.search(r'[\x00-\x1F\x7F-\xFF]', line)):
+                continue
+                
             cleaned_lines.append(line)
         
         # Process lines to find and remove footers
@@ -149,6 +203,23 @@ class ArticleExtractor:
         cleaned_text = "\n\n".join(cleaned_lines[:footer_start_idx])
         
         return cleaned_text
+    
+    def _format_text_for_display(self, text: str) -> str:
+        """Format text for display in the TUI.
+        
+        This ensures proper paragraph breaks and clean formatting.
+        """
+        if not text:
+            return ""
+        
+        # Split into paragraphs (single or multiple newlines)
+        paragraphs = re.split(r'\n+', text)
+        
+        # Filter out empty paragraphs and trim whitespace
+        paragraphs = [p.strip() for p in paragraphs if p.strip()]
+        
+        # Join with double newlines for proper paragraph spacing
+        return "\n\n".join(paragraphs)
     
     def extract_content_sync(self, url: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
         """Extract article content synchronously."""
@@ -184,6 +255,9 @@ class ArticleExtractor:
             
             # Clean the text
             text = self._clean_text(text)
+            
+            # Format for display
+            text = self._format_text_for_display(text)
             
             # Save to cache
             self._save_to_cache(url, {

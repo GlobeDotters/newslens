@@ -1,9 +1,48 @@
 /* NewsLens TUI styles */
 
+* {
+    box-sizing: border-box;
+}
+
+/* Keep colors in selected rows */
+.datatable--highlight .bias-left {
+    color: blue;
+}
+
+.datatable--highlight .bias-right {
+    color: red;
+}
+
+.datatable--highlight .bias-center {
+    color: green;
+}
+
+.datatable--highlight .bias-balanced {
+    color: white;
+}
+
+.datatable--highlight .bias-blue {
+    color: blue;
+}
+
+.datatable--highlight .bias-green {
+    color: green;
+}
+
+.datatable--highlight .bias-red {
+    color: red;
+}
+
+HeadlinesTable > .datatable--header {
+    background: #1e40af;
+    color: white;
+}
+
 HeadlinesTable {
     width: 100%;
     height: 1fr;
     border: tall #1d4ed8; /* was $primary-darken-2 */
+    background: #0f172a;
 }
 
 ArticleView {
@@ -12,10 +51,14 @@ ArticleView {
     border: tall #a855f7; /* was $accent-darken-2 */
     padding: 1 2;
     margin-top: 1;
+    background: #111827;
+    color: #e5e7eb;
 }
 
 ArticleView > Static {
     width: 100%;
+    padding: 0 1;
+    margin: 0;
 }
 
 StatusBar {
@@ -60,8 +103,8 @@ Button {
 }
 
 #header {
-    background: #1f2937; /* was $boost */
-    color: #e5e7eb; /* was $text */
+    background: #1e3a8a; /* Darker blue */
+    color: #ffffff; /* Bright white text */
 }
 
 #footer {
