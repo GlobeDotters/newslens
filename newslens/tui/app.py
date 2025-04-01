@@ -2,24 +2,18 @@
 NewsLens TUI main application.
 """
 
-import os
 import asyncio
-import time
 from datetime import datetime
-from pathlib import Path
 from typing import Dict, List, Optional, Any
+from functools import partial
 
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, Vertical
 from textual.reactive import reactive
 from textual.screen import Screen
-from textual.widgets import Button, Footer, Header, Static, Label, ListItem, ListView, Input, Select, DataTable
-from textual.widgets._data_table import RowKey
-from textual import events, work
-from textual.css.query import NoMatches
-
+from textual.widgets import Button, Footer, Header, Static, DataTable, Select
+from textual import events, work, on
 from rich.text import Text
-from rich.console import RenderableType
 
 from ..data.async_fetcher import AsyncNewsFetcher
 from ..data.mock import MockNewsFetcher
@@ -36,21 +30,19 @@ class HeadlinesTable(DataTable):
         self.cursor_type = "row"
         self.add_column("Title", width=50)
         self.add_column("", width=1)  # Color indicator
-        self.add_column("Left", width=5, key="left")
-        self.add_column("Center", width=7, key="center")
-        self.add_column("Right", width=6, key="right")
-        self.add_column("Source", width=15, key="source")
+        self.add_column("Left", width=5)
+        self.add_column("Center", width=7) 
+        self.add_column("Right", width=6)
+        self.add_column("Source", width=15)
         self.zebra_stripes = True
 
     def add_headline(self, idx: int, story: CoverageAnalysis) -> None:
         """Add a headline to the table."""
         title = story.story.title
         
-        # Truncate long titles
         if len(title) > 70:
             title = title[:67] + "..."
         
-        # Determine bias indicator
         bias_indicator = "●"
         if story.left_sources > 0 and story.right_sources == 0:
             bias_class = "bias-left"
@@ -60,22 +52,15 @@ class HeadlinesTable(DataTable):
             bias_class = "bias-center"
         else:
             bias_class = "bias-balanced"
-            bias_indicator = "○"  # Balanced
         
         bias_text = Text(bias_indicator)
-        bias_text.stylize(f"@{bias_class}")
+        bias_text.stylize(bias_class)
         
-        # Get first source for display
         first_source = story.story.sources[0] if story.story.sources else ""
-        
-        # Mark blindspots
-        blindspot_text = ""
-        if story.blindspot:
-            blindspot_text = "⚠️ " + story.blindspot
         
         self.add_row(
             title,
-            bias_text,
+            bias_text, 
             str(story.left_sources),
             str(story.center_sources),
             str(story.right_sources),
@@ -91,60 +76,60 @@ class HeadlinesTable(DataTable):
 class ArticleView(Static):
     """A widget for displaying article content."""
     
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.article_title = ""
-        self.article_source = ""
-        self.article_url = ""
-        self.article_content = ""
-    
+    article_title = reactive("")
+    article_source = reactive("")
+    article_url = reactive("")
+    article_content = reactive("")
+
     def load_article(self, title: str, source: str, url: str, content: str) -> None:
         """Load article content into the view."""
         self.article_title = title
         self.article_source = source
         self.article_url = url
         self.article_content = content
+
+    def watch_article_content(self) -> None:
+        """Automatically update content when article_content changes."""
         self.update_content()
-    
+
     def update_content(self) -> None:
         """Update the displayed content."""
         if not self.article_title:
-            welcome_text = """
-            [bold]Welcome to NewsLens Reader[/bold]
-            
-            Select an article from the headlines above to read it here.
-            
-            [dim]Keyboard shortcuts:[/dim]
-            • Up/Down: Navigate headlines
-            • Enter: Read selected article
-            • R: Refresh headlines
-            • F: Toggle between mock/real data
-            • C: Change country
-            • Q: Quit
-            """
+            welcome_text = Text("""
+Welcome to NewsLens Reader
+
+Select an article from the headlines above to read it here.
+
+Keyboard shortcuts:
+• Up/Down: Navigate headlines 
+• Enter: Read selected article
+• R: Refresh headlines 
+• F: Toggle mock/real data
+• C: Change country
+• Q: Quit""")
+            welcome_text.stylize("bold", 0, 26)
+            welcome_text.stylize("dim", 115, 135)
             self.update(welcome_text)
             return
-        
-        # Format the article content nicely
-        content = f"[bold]{self.article_title}[/bold]\n\n"
-        content += f"[italic]{self.article_source}[/italic] • [link={self.article_url}]{self.article_url}[/link]\n\n"
-        
-        # Process the article content
-        paragraphs = self.article_content.split('\n')
-        formatted_paragraphs = []
-        
-        for paragraph in paragraphs:
-            # Skip empty paragraphs
-            if not paragraph.strip():
-                continue
-                
-            # Format paragraphs nicely
-            formatted_paragraph = paragraph.strip()
-            formatted_paragraphs.append(formatted_paragraph)
-        
-        content += "\n\n".join(formatted_paragraphs)
-        
-        self.update(content)
+
+        # Create main content with proper formatting
+        main_content = [
+            Text(f"\n{self.article_title}", style="bold"),
+            Text(f"\n{self.article_source} • ", style="italic"),
+            Text(f"{self.article_url}", style=f"underline link {self.article_url}"),
+            Text("\n\n", style="")
+        ]
+
+        # Add article content paragraphs
+        if self.article_content:
+            paragraphs = self.article_content.split('\n')
+            for paragraph in paragraphs:
+                if paragraph.strip():
+                    main_content.append(Text(paragraph + "\n"))
+
+        # Combine all elements and update
+        final_content = Text.assemble(*main_content)
+        self.update(final_content)
 
 
 class StatusBar(Static):
@@ -152,29 +137,25 @@ class StatusBar(Static):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.update("Ready")
+        self.set_status("Ready")
     
     def set_status(self, status: str, style: str = "white") -> None:
         """Set the status text."""
-        status_text = Text(status)
-        status_text.stylize(f"[{style}]")
-        
-        # Add timestamp
+        status_text = Text(status, style=style)
         now = datetime.now().strftime("%H:%M:%S")
         timestamp = Text(f" [{now}]", style="dim")
-        
-        # Combine status and timestamp
-        full_status = Text.assemble(status_text, timestamp)
-        self.update(full_status)
+        self.update(Text.assemble(status_text, timestamp))
+
 
 class NewsLensApp(App):
     """The main NewsLens TUI application."""
     
+    CSS_PATH = "styles.css"
     BINDINGS = [
         ("q", "quit", "Quit"),
         ("r", "refresh", "Refresh"),
         ("f", "toggle_mock", "Toggle Mock Data"),
-        ("c", "cycle_country", "Change Country"),
+        ("c", "cycle_country", "Change Country"),  
         ("a", "read_article", "Read Article"),
     ]
     
@@ -183,193 +164,159 @@ class NewsLensApp(App):
     use_mock_data = reactive(True)
     
     def __init__(self, *args, **kwargs):
-        # Get the path to the CSS file
-        css_path = os.path.join(os.path.dirname(__file__), "styles.css")
-        if os.path.exists(css_path):
-            with open(css_path, "r") as f:
-                self.CSS = f.read()
-        
         super().__init__(*args, **kwargs)
         self.config = Config()
         self.use_mock_data = self.config.get("use_mock_data", True)
         self.country_code = self.config.get("country", "US")
-        self.analyzer = NewsAnalyzer()
+        self.analyzer = NewsAnalyzer()  
         self.article_extractor = ArticleExtractor()
+        self._analysis_worker = None
     
     def compose(self) -> ComposeResult:
         """Compose the app layout."""
-        yield Header(id="header")
-        
-        with Container():
-            with Horizontal(id="controls"):
-                yield Select(
-                    [(c, c) for c in ["US", "UK", "CA", "AU"]], 
-                    value=self.country_code,
+        yield Header()
+        yield Footer()
+        yield Container(
+            Horizontal(
+                Select(
+                    [(c, c) for c in ["US", "UK", "CA", "AU"]],
+                    value=self.country_code, 
                     id="country-select",
-                    prompt="Country:"
-                )
-                yield Button("Refresh", id="refresh-button", variant="primary")
-                yield Button(
+                    prompt="Country:",
+                    classes="country-select"
+                ),
+                Button("Refresh", id="refresh-button", variant="primary"),
+                Button(
                     "Mock Data: ON" if self.use_mock_data else "Mock Data: OFF",
-                    id="mock-button",
+                    id="mock-button", 
                     variant="default"
                 )
-            
-            yield HeadlinesTable(id="headlines-table")
-            yield ArticleView(id="article-view")
-            yield StatusBar(id="status-bar")
-            
-        yield Footer()
+            ),
+            HeadlinesTable(id="headlines-table"),
+            ArticleView(id="article-view"),
+            id="main-container"   
+        )
+        yield StatusBar(id="status-bar")
     
-    def on_mount(self) -> None:
-        """Event handler called when app is mounted."""
+    async def on_mount(self) -> None:
+        """Event handler called when app is mounted."""  
+        self.query_one(HeadlinesTable).focus()
         self.refresh_headlines()
-    
-    def on_button_pressed(self, event: Button.Pressed) -> None:
+
+    async def on_button_pressed(self, event: Button.Pressed) -> None:
         """Event handler for button presses."""
         button_id = event.button.id
-        
         if button_id == "refresh-button":
             self.refresh_headlines()
-        
         elif button_id == "mock-button":
-            self.toggle_mock_data()
+            await self.action_toggle_mock()
     
-    def on_select_changed(self, event: Select.Changed) -> None:
+    async def on_select_changed(self, event: Select.Changed) -> None:  
         """Event handler for select changes."""
-        select_id = event.select.id
-        
-        if select_id == "country-select":
-            self.country_code = event.value
-            self.config.set("country", self.country_code)
-            self.refresh_headlines()
-    
-    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
-        """Event handler for table row selection."""
-        try:
-            idx = int(event.row_key.value)
-            self.read_article(idx)
-        except (ValueError, IndexError):
-            self.notify("Invalid story selection", severity="error")
-    
-    def action_toggle_mock(self) -> None:
-        """Toggle between mock and real data."""
-        self.use_mock_data = not self.use_mock_data
-        self.config.set("use_mock_data", self.use_mock_data)
-        
-        try:
-            mock_button = self.query_one("#mock-button", Button)
-            mock_button.label = "Mock Data: ON" if self.use_mock_data else "Mock Data: OFF"
-        except NoMatches:
-            pass
-            
+        self.country_code = event.value
+        self.config.set("country", self.country_code)
         self.refresh_headlines()
     
-    def action_cycle_country(self) -> None:
+    async def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
+        """Event handler for table row selection."""
+        if event.row_key is not None:
+            try:
+                idx = int(event.row_key.value)
+                await self.on_read_article(idx)
+            except (ValueError, IndexError):
+                self.notify("Invalid story selection", severity="error")
+        
+    async def action_toggle_mock(self) -> None:
+        """Toggle between mock and real data."""  
+        self.use_mock_data = not self.use_mock_data  
+        self.config.set("use_mock_data", self.use_mock_data)
+        self.refresh_headlines()
+    
+    async def action_cycle_country(self) -> None:
         """Cycle through available countries."""
         countries = ["US", "UK", "CA", "AU"]
         current_idx = countries.index(self.country_code) if self.country_code in countries else 0
         next_idx = (current_idx + 1) % len(countries)
         self.country_code = countries[next_idx]
-        
-        try:
-            country_select = self.query_one("#country-select", Select)
-            country_select.value = self.country_code
-        except NoMatches:
-            pass
-            
         self.config.set("country", self.country_code)
         self.refresh_headlines()
-    
-    def action_read_article(self) -> None:
-        """Read the selected article."""
-        headlines_table = self.query_one("#headlines-table", HeadlinesTable)
-        row_key = headlines_table.cursor_row
-        
-        if row_key is not None:
-            try:
-                idx = int(row_key)
-                self.read_article(idx)
-            except (ValueError, IndexError):
-                self.notify("Invalid story selection", severity="error")
-    
-    @work(exclusive=True)
+
+    @work
     async def refresh_headlines(self) -> None:
-        """Refresh headlines from selected sources."""
-        self.set_status("Fetching headlines...", "bold yellow")
+        """Worker method to refresh headlines."""
+        self.set_status("Fetching headlines...", "yellow bold")
         
-        headlines_table = self.query_one("#headlines-table", HeadlinesTable)
+        headlines_table = self.query_one(HeadlinesTable)
         headlines_table.clear_headlines()
         
-        if self.use_mock_data:
-            fetcher = MockNewsFetcher()
-            news_items = fetcher.fetch_by_country(self.country_code)
-        else:
-            fetcher = AsyncNewsFetcher()
-            news_items = await fetcher.fetch_by_country(self.country_code)
-        
-        if not news_items:
-            self.set_status("No news found", "bold red")
-            return
-        
-        self.set_status(f"Analyzing {len(news_items)} news items...", "bold cyan")
-        # We need to run the analysis in a thread to avoid blocking the UI
-        self.stories = await self.run_worker(self._analyze_stories, news_items)
-        
-        # Update the table with the stories
-        for idx, story in enumerate(self.stories):
-            headlines_table.add_headline(idx, story)
-        
-        now = datetime.now().strftime("%H:%M:%S")
-        self.set_status(f"Updated at {now} - {len(self.stories)} stories found", "bold green")
-    
-    async def _analyze_stories(self, news_items: List[Any]) -> List[CoverageAnalysis]:
-        """Analyze news items for coverage analysis."""
-        # This runs in a separate thread
-        stories = self.analyzer.analyze_coverage(news_items, self.country_code)
-        return stories
-    
-    @work(exclusive=True)
-    async def read_article(self, story_idx: int) -> None:
-        """Read the selected article."""
-        if story_idx < 0 or story_idx >= len(self.stories):
-            self.notify(f"Story index {story_idx} is out of range", severity="error")
-            return
-        
-        story = self.stories[story_idx]
-        article = story.story.items[0]  # Get the first article in the cluster
-        
-        article_view = self.query_one("#article-view", ArticleView)
-        
-        title = article.title
-        source = article.source_name
-        url = article.url
-        content = article.content
-        
-        # If no content, try to fetch it
-        if not content:
-            self.set_status(f"Fetching article from {source}...", "bold cyan")
-            
-            # Run the extraction in a worker to avoid blocking
-            _, extracted_text, _ = await self.run_worker(
-                self.article_extractor.extract_content_sync, url
-            )
-            
-            if extracted_text:
-                content = extracted_text
-                article.content = content  # Update the article object
-                self.set_status("Article loaded", "bold green")
+        try:
+            if self.use_mock_data:
+                fetcher = MockNewsFetcher()  
+                news_items = fetcher.fetch_by_country(self.country_code)
             else:
-                content = "Could not extract article content. Please visit the URL to read the full article."
-                self.set_status("Could not load article", "bold red")
+                fetcher = AsyncNewsFetcher()
+                news_items = await fetcher.fetch_by_country(self.country_code)
+            
+            if not news_items:
+                self.set_status("No news found", "red bold")
+                return
+            
+            self.set_status(f"Analyzing {len(news_items)} news items...", "cyan bold")
+            
+            # Run blocking analysis in a thread
+            analyze = partial(self.analyzer.analyze_coverage, news_items, self.country_code)
+            self._analysis_worker = self.run_worker(analyze, thread=True, exclusive=False)
+            await self._analysis_worker.wait()
+            
+            if self._analysis_worker.result is not None:
+                self.stories = self._analysis_worker.result
+                for idx, story in enumerate(self.stories):
+                    headlines_table.add_headline(idx, story)
+                
+                now = datetime.now().strftime("%H:%M")
+                self.set_status(f"Updated at {now} - {len(self.stories)} stories", "green bold")
         
-        # Update the article view
-        article_view.load_article(title, source, url, content)
+        except Exception as e:
+            self.set_status(f"Error: {str(e)}", "red bold")
+
+    async def on_read_article(self, idx: int) -> None:
+        """Handle reading an article."""
+        if not (0 <= idx < len(self.stories)):
+            self.notify(f"Story index {idx} is out of range", severity="error")
+            return
     
+        story = self.stories[idx]
+        article = story.story.items[0]
+        
+        article_view = self.query_one(ArticleView)
+        article_view.load_article(
+            title=article.title,
+            source=article.source_name,
+            url=article.url,
+            content=article.content or ""
+        )
+        
+        if not article.content:
+            self.set_status(f"Fetching from {article.source_name}...", "cyan bold")
+            try:
+                _, content, _ = await self.article_extractor.extract_content(article.url)
+                if content:
+                    article.content = content
+                    article_view.article_content = content
+                    self.set_status("Article loaded", "green bold")
+                else:
+                    article_view.article_content = "Could not extract article content."
+                    self.set_status("Could not load article", "red bold")
+            except Exception as e: 
+                article_view.article_content = f"Error loading article: {str(e)}"
+                self.set_status(f"Error loading article: {str(e)}", "red bold")
+        else:
+            article_view.article_content = article.content
+            self.set_status("Showing cached content", "green bold")
+
     def set_status(self, message: str, style: str = "white") -> None:
-        """Set the status bar message."""
-        status_bar = self.query_one("#status-bar", StatusBar)
-        status_bar.set_status(message, style)
+        """Set the status bar message."""  
+        self.query_one(StatusBar).set_status(message, style)
 
 
 def run_app() -> None:
