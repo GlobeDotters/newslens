@@ -16,7 +16,7 @@ NewsLens is a command-line tool that helps you understand news coverage across t
 - 🔄 Local news source database with bias classifications
 - 🔊 Asynchronous news fetching for improved performance
 - 📝 Full article extraction and reader mode
-- 📱 Interactive Terminal User Interface (TUI)
+- 📱 Interactive Terminal User Interface (TUI) with keyboard navigation
 - 💡 Bias detection and blindspot analysis
 
 ## Installation
@@ -38,6 +38,22 @@ To use the interactive TUI, you'll need to install the required dependencies:
 ```bash
 pip install textual
 ```
+
+### TUI Navigation
+
+The Terminal User Interface (TUI) provides an interactive way to browse news and analyze media bias. Navigation is fully keyboard-accessible:
+
+- **Arrow keys** or **j/k**: Navigate headlines and scroll articles
+- **Tab**: Switch focus between headlines list and article view
+- **Enter**: Read selected article
+- **Page Up/Down**: Faster article scrolling
+- **Home/End**: Jump to top/bottom of articles
+- **r**: Refresh headlines
+- **f**: Toggle between mock and real data
+- **c**: Change country
+- **q**: Quit the application
+
+Mouse scrolling is also supported for article navigation.
 
 ## Usage
 

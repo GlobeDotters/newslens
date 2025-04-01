@@ -12,6 +12,7 @@ We've created a solid foundation for the NewsLens CLI application with the follo
    - Analysis engine for bias detection and blindspot identification
    - Rich terminal visualization
    - Article reader mode in terminal
+   - Interactive TUI with keyboard navigation and scrollable articles
 
 2. **CLI commands**
    - `headlines` - Show top headlines with bias breakdown
@@ -32,10 +33,10 @@ We've created a solid foundation for the NewsLens CLI application with the follo
 
 ### Short-term Improvements
 
-1. **Non-blocking interactive UI**
-   - Implement a full terminal UI with Textual
-   - Add navigation between stories and articles
-   - Make the UI responsive during data fetching
+1. ~~**Non-blocking interactive UI**~~ ✅
+   - ~~Implement a full terminal UI with Textual~~ ✅
+   - ~~Add navigation between stories and articles~~ ✅
+   - ~~Make the UI responsive during data fetching~~ ✅
 
 2. **Real-time monitoring**
    - Add daemon mode for continuous monitoring of sources

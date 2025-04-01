@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, Any
 from functools import partial
 
 from textual.app import App, ComposeResult
-from textual.containers import Container, Horizontal, Vertical
+from textual.containers import Container, Horizontal, Vertical, ScrollableContainer
 from textual.reactive import reactive
 from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Static, DataTable, Select
@@ -73,8 +73,20 @@ class HeadlinesTable(DataTable):
         self.clear()
 
 
-class ArticleView(Static):
+class ArticleView(ScrollableContainer):
     """A widget for displaying article content."""
+    
+    # Add keyboard bindings for scrolling
+    BINDINGS = [
+        ("up", "scroll_up", "Scroll Up"),
+        ("down", "scroll_down", "Scroll Down"),
+        ("k", "scroll_up", "Scroll Up"),
+        ("j", "scroll_down", "Scroll Down"),
+        ("page_up", "page_up", "Page Up"),
+        ("page_down", "page_down", "Page Down"),
+        ("home", "scroll_home", "Scroll to Top"),
+        ("end", "scroll_end", "Scroll to Bottom"),
+    ]
     
     article_title = reactive("")
     article_source = reactive("")
@@ -83,17 +95,47 @@ class ArticleView(Static):
 
     def load_article(self, title: str, source: str, url: str, content: str) -> None:
         """Load article content into the view."""
+        # First set properties
         self.article_title = title
         self.article_source = source
         self.article_url = url
+        # Update content last to trigger the update
         self.article_content = content
 
     def watch_article_content(self) -> None:
         """Automatically update content when article_content changes."""
         self.update_content()
+        
+    async def action_scroll_up(self) -> None:
+        """Scroll the content up."""
+        self.scroll_up()
+        
+    async def action_scroll_down(self) -> None:
+        """Scroll the content down."""
+        self.scroll_down()
+        
+    async def action_page_up(self) -> None:
+        """Scroll up by one page."""
+        self.scroll_page_up()
+        
+    async def action_page_down(self) -> None:
+        """Scroll down by one page."""
+        self.scroll_page_down()
+        
+    async def action_scroll_home(self) -> None:
+        """Scroll to the top of the content."""
+        self.scroll_home()
+        
+    async def action_scroll_end(self) -> None:
+        """Scroll to the bottom of the content."""
+        self.scroll_end()
 
     def update_content(self) -> None:
         """Update the displayed content."""
+        # Clear previous content
+        if self.query(Static).first is not None:
+            self.query(Static).remove()
+        
         if not self.article_title:
             welcome_text = Text("""
 Welcome to NewsLens Reader
@@ -101,17 +143,23 @@ Welcome to NewsLens Reader
 Select an article from the headlines above to read it here.
 
 Keyboard shortcuts:
-• Up/Down: Navigate headlines 
+• Up/Down or j/k: Navigate and scroll 
 • Enter: Read selected article
+• PgUp/PgDn: Page navigation
+• Home/End: Jump to top/bottom
+• Tab: Switch between headlines and article
 • R: Refresh headlines 
 • F: Toggle mock/real data
 • C: Change country
 • Q: Quit""")
             welcome_text.stylize("bold", 0, 26)
             welcome_text.stylize("dim", 115, 135)
-            self.update(welcome_text)
+            self.mount(Static(welcome_text))
             return
-
+        
+        # Create main content container
+        article_content = Static()
+        
         # Create main content with proper formatting
         main_content = [
             Text(f"\n{self.article_title}", style="bold"),
@@ -129,7 +177,10 @@ Keyboard shortcuts:
 
         # Combine all elements and update
         final_content = Text.assemble(*main_content)
-        self.update(final_content)
+        article_content.update(final_content)
+        
+        # Mount the content to the scrollable container
+        self.mount(article_content)
 
 
 class StatusBar(Static):
@@ -157,6 +208,8 @@ class NewsLensApp(App):
         ("f", "toggle_mock", "Toggle Mock Data"),
         ("c", "cycle_country", "Change Country"),  
         ("a", "read_article", "Read Article"),
+        ("tab", "switch_focus", "Switch Focus"),
+        ("shift+tab", "switch_focus_backward", "Switch Focus Backward"),
     ]
     
     stories = reactive([])
@@ -313,10 +366,24 @@ class NewsLensApp(App):
         else:
             article_view.article_content = article.content
             self.set_status("Showing cached content", "green bold")
+        
+        # Focus the article view after loading
+        article_view.focus()
 
     def set_status(self, message: str, style: str = "white") -> None:
         """Set the status bar message."""  
         self.query_one(StatusBar).set_status(message, style)
+    
+    async def action_switch_focus(self) -> None:
+        """Switch focus between headlines table and article view."""
+        if self.focused is self.query_one(HeadlinesTable):
+            self.query_one(ArticleView).focus()
+        else:
+            self.query_one(HeadlinesTable).focus()
+    
+    async def action_switch_focus_backward(self) -> None:
+        """Switch focus in reverse order."""
+        await self.action_switch_focus()
 
 
 def run_app() -> None:

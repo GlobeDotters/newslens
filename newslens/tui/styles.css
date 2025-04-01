@@ -11,8 +11,11 @@ ArticleView {
     height: 2fr;
     border: tall #a855f7; /* was $accent-darken-2 */
     padding: 1 2;
-    overflow-y: scroll;
     margin-top: 1;
+}
+
+ArticleView > Static {
+    width: 100%;
 }
 
 StatusBar {
